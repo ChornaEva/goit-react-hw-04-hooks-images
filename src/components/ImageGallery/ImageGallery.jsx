@@ -1,124 +1,107 @@
-import React, { Component } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import ImageGalleryItem from '../ImageGalleryItem/ImageGalleryItem';
 import Loader from '../Loader/Loader';
 import Button from '../Button';
 import Modal from '../Modal';
 
-class ImageGallery extends Component {
-  state = {
-    gallery: [],
-    status: 'idle',
-    page: 1,
-    total: 0,
-    largeImageURL: '',
-    showModal: false,
-  };
+const ImageGallery = ({ searchImage }) => {
+  const [gallery, setGallery] = useState([]);
+  const [status, setStatus] = useState('idle');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [largeImageURL, setLargeImageURL] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [error, setError] = useState('');
 
-  componentDidUpdate(prevProps, prevState) {
-    const prevSearchImage = prevProps.searchImage;
-    const nextSearchImage = this.props.searchImage;
-
-    const prevPage = prevState.page;
-    const nextPage = this.state.page;
-
-    if (prevSearchImage !== nextSearchImage) {
-      this.setState({ status: 'pending', gallery: [], page: 1 });
+  useEffect(() => {
+    if (searchImage !== '') {
+      setStatus('pending');
+      setGallery([]);
+      setPage(1);
 
       fetch(
-        `https://pixabay.com/api/?q=${nextSearchImage}&page=1&key=24369719-4937f00e9b76df3c43c2e5aa7&image_type=photo&orientation=horizontal&per_page=12`
+        `https://pixabay.com/api/?q=${searchImage}&page=1&key=24369719-4937f00e9b76df3c43c2e5aa7&image_type=photo&orientation=horizontal&per_page=12`
       )
         .then(res => res.json())
         // из полученного массива забираем картинки и распыляем в стейт
-        .then(gallery =>
-          this.setState({
-            gallery: [...gallery.hits],
-            status: 'resolved',
-            total: gallery.totalHits,
-          })
-        )
-        .catch(error =>
-          this.setState({ error: error.message, status: 'rejected' })
-        )
-        .finally(console.log(this.state.total));
+        .then(gallery => {
+          setGallery([...gallery.hits]);
+          setStatus('resolved');
+          setTotal(gallery.totalHits);
+        })
+        .catch(error => {
+          setError(error.message);
+          setStatus('rejected');
+        });
     }
-    // если пред стр не равна след-й и не первая, отправляем запрос на дозагрузку изображений
-    if (prevPage !== nextPage && nextPage !== 1) {
-      this.setState({ status: 'pending' });
+  }, [searchImage]);
+
+  useEffect(() => {
+    if (page !== 1) {
+      setStatus('pending');
       fetch(
-        `https://pixabay.com/api/?q=${nextSearchImage}&page=${nextPage}&key=24369719-4937f00e9b76df3c43c2e5aa7&image_type=photo&orientation=horizontal&per_page=12`
+        `https://pixabay.com/api/?q=${searchImage}&page=${page}&key=24369719-4937f00e9b76df3c43c2e5aa7&image_type=photo&orientation=horizontal&per_page=12`
       )
         .then(res => res.json())
         // получаем новые картинки, распыляем в галерею уже сущ-е и новые
-        .then(newGallery =>
-          this.setState({
-            gallery: [...prevState.gallery, ...newGallery.hits],
-            status: 'resolved',
-            total: newGallery.totalHits,
-          })
-        )
-        .catch(error =>
-          this.setState({ error: error.message, status: 'rejected' })
-        );
+        .then(newGallery => {
+          setGallery(prevGallery => [...prevGallery, ...newGallery.hits]);
+          setStatus('resolved');
+          setTotal(newGallery.totalHits);
+        })
+        .catch(error => {
+          setError(error.message);
+          setStatus('rejected');
+        });
     }
-  }
+  }, [page, searchImage]);
+
+  useEffect(() => {
+    if (status === 'rejected') {
+      toast.error('Woops...');
+    }
+  }, [status]);
+
   // при клике на кнопку загрузить ещё- увеличиваем стра на 1
-  onLoadMore = event => {
+  const onLoadMore = event => {
     event.preventDefault();
-    this.setState(prevState => ({ page: prevState.page + 1 }));
+    setPage(prevPage => prevPage + 1);
   };
 
   // открытие/закрытие модального окна
-  toggleModal = (largeImageURL = '') => {
-    this.setState(state => ({ showModal: !state.showModal, largeImageURL }));
+  const toggleModal = (largeImageURL = '') => {
+    setShowModal(!showModal);
+    setLargeImageURL(largeImageURL);
   };
 
-  render() {
-    const { gallery, status, total, showModal, largeImageURL } = this.state;
+  return (
+    <>
+      {status === 'idle' ? <div>'Enter your querry'</div> : null}
+      {status === 'pending' ? <Loader /> : null}
 
-    if (status === 'idle') {
-      return <div>'Enter your querry'</div>;
-    }
-
-    if (status === 'pending') {
-      return <Loader />;
-    }
-
-    if (status === 'rejected') {
-      return toast.error('Woops...');
-    }
-
-    if (status === 'resolved') {
-      return (
-        <>
-          <ul className="ImageGallery">
-            {gallery.length
-              ? gallery.map(image => (
-                  <ImageGalleryItem
-                    key={image.id}
-                    imageURL={image.webformatURL}
-                    largeImageURL={image.largeImageURL}
-                    toggleModal={this.toggleModal}
-                  />
-                ))
-              : null}
-          </ul>
-          {/* если длинна масива меньше максимальной-показываем кнопку ;загрузить ещё;, нет- кнопка скрыта*/}
-          {gallery.length < total ? (
-            <Button
-              type="button"
-              state={this.state}
-              onClick={this.onLoadMore}
-            />
-          ) : null}
-          {/* если модалка закрыта,вызываем тоглмодал и открываем её */}
-          {showModal && (
-            <Modal largeImageURL={largeImageURL} onClose={this.toggleModal} />
-          )}
-        </>
-      );
-    }
-  }
-}
+      {status === 'resolved' ? (
+        <ul className="ImageGallery">
+          {gallery.length
+            ? gallery.map(image => (
+                <ImageGalleryItem
+                  key={image.id}
+                  imageURL={image.webformatURL}
+                  largeImageURL={image.largeImageURL}
+                  toggleModal={toggleModal}
+                />
+              ))
+            : null}
+        </ul>
+      ) : null}
+      {gallery.length < total ? (
+        <Button type="button" onClick={onLoadMore} />
+      ) : null}
+      {showModal && (
+        <Modal largeImageURL={largeImageURL} onClose={toggleModal} />
+      )}
+    </>
+  );
+};
 
 export default ImageGallery;
