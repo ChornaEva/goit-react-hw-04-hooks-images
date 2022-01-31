@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 
-const Searchbar = ({ onSubmit }) => {
+const Searchbar = ({ onSubmit, setPage }) => {
   const [searchImage, setSearchImage] = useState('');
 
   // при изменении значения инпута, значение записывается в стейт
@@ -20,6 +20,7 @@ const Searchbar = ({ onSubmit }) => {
 
     onSubmit(searchImage);
     setSearchImage('');
+    setPage(1);
   };
 
   return (

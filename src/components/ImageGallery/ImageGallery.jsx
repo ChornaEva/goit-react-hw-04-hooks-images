@@ -4,26 +4,23 @@ import ImageGalleryItem from '../ImageGalleryItem/ImageGalleryItem';
 import Loader from '../Loader/Loader';
 import Button from '../Button';
 import Modal from '../Modal';
+import fetchImages from '../../helpers/api';
 
-const ImageGallery = ({ searchImage }) => {
+const ImageGallery = ({ searchImage, page, setPage }) => {
   const [gallery, setGallery] = useState([]);
   const [status, setStatus] = useState('idle');
-  const [page, setPage] = useState(1);
+
   const [total, setTotal] = useState(0);
   const [largeImageURL, setLargeImageURL] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (searchImage !== '') {
+    if (searchImage !== '' && page === 1) {
       setStatus('pending');
       setGallery([]);
-      setPage(1);
 
-      fetch(
-        `https://pixabay.com/api/?q=${searchImage}&page=1&key=24369719-4937f00e9b76df3c43c2e5aa7&image_type=photo&orientation=horizontal&per_page=12`
-      )
-        .then(res => res.json())
+      fetchImages(searchImage, 1)
         // из полученного массива забираем картинки и распыляем в стейт
         .then(gallery => {
           setGallery([...gallery.hits]);
@@ -35,15 +32,11 @@ const ImageGallery = ({ searchImage }) => {
           setStatus('rejected');
         });
     }
-  }, [searchImage]);
 
-  useEffect(() => {
     if (page !== 1) {
       setStatus('pending');
-      fetch(
-        `https://pixabay.com/api/?q=${searchImage}&page=${page}&key=24369719-4937f00e9b76df3c43c2e5aa7&image_type=photo&orientation=horizontal&per_page=12`
-      )
-        .then(res => res.json())
+
+      fetchImages(searchImage, page)
         // получаем новые картинки, распыляем в галерею уже сущ-е и новые
         .then(newGallery => {
           setGallery(prevGallery => [...prevGallery, ...newGallery.hits]);
@@ -55,7 +48,7 @@ const ImageGallery = ({ searchImage }) => {
           setStatus('rejected');
         });
     }
-  }, [page, searchImage]);
+  }, [page, searchImage, setPage]);
 
   useEffect(() => {
     if (status === 'rejected') {
