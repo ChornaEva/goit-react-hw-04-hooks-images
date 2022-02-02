@@ -16,32 +16,14 @@ const ImageGallery = ({ searchImage, page, setPage }) => {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (searchImage !== '' && page === 1) {
+    if (searchImage) {
       setStatus('pending');
-      setGallery([]);
-
-      fetchImages(searchImage, 1)
-        // из полученного массива забираем картинки и распыляем в стейт
-        .then(gallery => {
-          setGallery([...gallery.hits]);
-          setStatus('resolved');
-          setTotal(gallery.totalHits);
-        })
-        .catch(error => {
-          setError(error.message);
-          setStatus('rejected');
-        });
-    }
-
-    if (page !== 1) {
-      setStatus('pending');
-
       fetchImages(searchImage, page)
-        // получаем новые картинки, распыляем в галерею уже сущ-е и новые
-        .then(newGallery => {
-          setGallery(prevGallery => [...prevGallery, ...newGallery.hits]);
+        .then(gallery => {
+          setGallery(prevGallery =>
+            page > 1 ? [...prevGallery, ...gallery.hits] : gallery.hits
+          );
           setStatus('resolved');
-          setTotal(newGallery.totalHits);
         })
         .catch(error => {
           setError(error.message);
